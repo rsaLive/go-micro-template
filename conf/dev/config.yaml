@@ -1,0 +1,19 @@
+system:
+  mode: dev
+  config_source: file
+redis:
+  db: 6
+  addr: 127.0.0.1:6379
+  password: "7532T6R"
+dbfiee:
+  host: 127.0.0.1
+  port: 3306
+  user: dyb
+  password: rootdyb
+  db_name: "fiee_bundle"
+zapLog:
+  level: "info"
+  filename: "logs/cast.log"
+  max_size: 5
+  max_age: 30
+  max_backups: 30

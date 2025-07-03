@@ -1,0 +1,100 @@
+kind: pipeline
+type: docker
+name: fiee-multicast【K8s-测试服】
+volumes:
+  - name: pkgdeps
+    host:
+      path: /mnt/storage/data/drone/define_cache/fiee-multicast
+  - name: docker
+    host:
+      path: /var/run/docker.sock
+  - name: docker-daemon
+    host:
+      path: /etc/docker/daemon.json
+steps:
+  - name: fetch submodules
+    image: xxx/public/plugins/git
+    pull: if-not-exists
+    commands:
+      - git config --file=.gitmodules submodule.fonchain-proto.url http://172.16.100.91:3000/fonchain/fonchain-proto.git
+      - git submodule sync
+      - git submodule update --init --force --recursive --remote
+  - name: build
+    image: xxx/public/golang:1.20-alpine
+    pull: if-not-exists
+    network:
+      mode: bridge
+      options:
+        com.docker.network.bridge.host_binding_ipv4: "172.16.100.22"
+        com.docker.network.bridge.name: "dnmp_default"
+    environment:
+      GOPROXY: "https://goproxy.cn,direct"
+      GOPATH: /go
+      GOCACHE: /go/pkg/mod/cache
+    volumes:
+      - name: pkgdeps
+        path: /go/pkg
+    commands:
+      - cp DockerfileK8sTest Dockerfile
+      - CGO_ENABLED=0 go build -ldflags "-s -w" -o fiee-multicast-server ./cmd
+  - name: publish
+    image: xxx/public/plugins/docker
+    pull: if-not-exists
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+      - name: pkgdeps
+        path: /cache
+    settings:
+      purge: false
+      username:
+        from_secret: harbor22-name
+      password:
+        from_secret: harbor22-password
+      registry:
+        from_secret: harbor22-host
+      repo: xxx/k8stest/fiee-multicast-server
+      tags:
+        - latest
+        - ${DRONE_BUILD_NUMBER}
+  - name: Deploy app
+    image: xxx/public/drone-k8s:latest
+    settings:
+      debug: true
+      build_number: ${DRONE_BUILD_NUMBER}
+      kuboard_accessKey: p7by8secijpm.bipdt88e55c8me4szah2njpr5kie2yed
+      namespace: "chain-server"
+      deployment_name: "fiee-multicast-server"
+      dashboard: kuboard
+      build_repo:
+        from_secret: build_repo
+
+  - name: 钉钉通知
+    image: xxx/public/drone-ding
+    settings:
+      token:
+        from_secret: ding-token
+      secret:
+        from_secret: ding-secret
+      type: markdown
+      message_color: true
+      message_pic: true
+      sha_link: true
+      db_log: true
+      db_type: mysql
+      db_name: notelog
+      db_host: "172.16.100.99"
+      db_port: 9007
+      db_username: artuser
+      db_password: "C250PflXIWv2SQm8"
+    when:
+      status: [ failure, success ]
+      branch: dev
+network:
+  subnet: dnmp_default
+trigger:
+  branch:
+    - dev
+  event:
+    - push
+    - custom

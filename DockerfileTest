@@ -1,0 +1,35 @@
+FROM xxxxxx:9043/public/golang:1.20-alpine AS builder
+
+LABEL stage=gobuilder
+#ENV DUBBO_GO_CONFIG_PATH ./conf/dubbogo.yaml
+#ENV MODE_ENV test
+ENV CGO_ENABLED 0
+ENV GOPROXY https://goproxy.cn,direct
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+#RUN apk update --no-cache && apk add --no-cache tzdata
+WORKDIR /build
+#ADD go.mod .
+#ADD go.sum .
+#RUN go mod download
+#COPY . .
+
+
+COPY fiee-multicast-server /app/fiee-multicast-server
+
+#FROM alpine
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+#RUN apk update --no-cache
+#RUN apk add --no-cache ca-certificates
+#RUN apk add --no-cache tzdata
+FROM xxxxx:9043/public/self-alpine
+COPY ./conf /app/conf
+#COPY ./deploy/dlv /app/dlv
+
+ENV TZ Asia/Shanghai
+ENV MODE_ENV k8stest
+WORKDIR /app
+#RUN ["chmod","+x","/app/dlv"]
+COPY --from=builder /app/fiee-multicast-server .
+EXPOSE 20126
+#EXPOSE 10006
+CMD ["/app/fiee-multicast-server"]
